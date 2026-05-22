@@ -61,12 +61,14 @@ try {
   console.log("🧹 Cleaning root directory...");
   const files = fs.readdirSync(projectRoot);
   for (const file of files) {
-    if (![".git", "node_modules", ".gitignore"].includes(file)) {
+    if (![".git", "node_modules", ".gitignore", "dist"].includes(file)) {
       fs.rmSync(path.join(projectRoot, file), { recursive: true, force: true });
     }
   }
 
-  execSync(`cp -r ${distPath}/* ${projectRoot}`);
+  execSync(`cp -r ${distPath}/. ${projectRoot}`);
+
+  fs.rmSync(distPath, { recursive: true, force: true });
 
   execSync("git add -f .", { cwd: projectRoot });
   execSync(`git commit -m "chore: release v${version}"`, { cwd: projectRoot });
