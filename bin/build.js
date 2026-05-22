@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const toolPkgPath = path.join(__dirname, "../package.json");
+const toolPkg = JSON.parse(fs.readFileSync(toolPkgPath, "utf-8"));
+
+const TOOL_NAME = toolPkg.name;
+const TOOL_VERSION = toolPkg.version;
 
 const bold = (txt) => `\x1b[1m${txt}\x1b[0m`;
 const green = (txt) => `\x1b[32m${txt}\x1b[0m`;
@@ -12,7 +20,7 @@ const startTime = Date.now();
 const projectRoot = process.cwd();
 const pkgPath = path.join(projectRoot, "package.json");
 
-console.log(`● ${bold("dirold-dev-tools")} ${gray("pack v1.0.0")}\n`);
+console.log(`\n● ${bold(TOOL_NAME)} ${gray(`publish v${TOOL_VERSION}`)}\n`);
 
 try {
   if (!fs.existsSync(pkgPath)) {

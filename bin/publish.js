@@ -2,6 +2,14 @@
 import { execSync } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const toolPkgPath = path.join(__dirname, "../package.json");
+const toolPkg = JSON.parse(fs.readFileSync(toolPkgPath, "utf-8"));
+
+const TOOL_NAME = toolPkg.name;
+const TOOL_VERSION = toolPkg.version;
 
 const bold = (txt) => `\x1b[1m${txt}\x1b[0m`;
 const green = (txt) => `\x1b[32m${txt}\x1b[0m`;
@@ -13,7 +21,7 @@ const startTime = Date.now();
 const projectRoot = process.cwd();
 const distPath = path.join(projectRoot, "dist");
 
-console.log(`\n● ${bold("dirold-dev-tools")} ${gray("publish v1.0.0")}\n`);
+console.log(`\n● ${bold(TOOL_NAME)} ${gray(`pack v${TOOL_VERSION}`)}\n`);
 
 try {
   const pkgPath = path.join(projectRoot, "package.json");

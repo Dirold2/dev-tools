@@ -2,6 +2,14 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const toolPkgPath = path.join(__dirname, "../package.json");
+const toolPkg = JSON.parse(fs.readFileSync(toolPkgPath, "utf-8"));
+
+const TOOL_NAME = toolPkg.name;
+const TOOL_VERSION = toolPkg.version;
 
 // ANSI-цвета для терминала
 const bold = (txt) => `\x1b[1m${txt}\x1b[0m`;
@@ -15,7 +23,7 @@ const projectRoot = process.cwd();
 let currentBranch = "main";
 const startTime = Date.now();
 
-console.log(`\n● ${bold("dirold-dev-tools")} ${gray("dist v1.0.0")}\n`);
+console.log(`\n● ${bold(TOOL_NAME)} ${gray(`dist v${TOOL_VERSION}`)}\n`);
 
 try {
   console.log(`${cyan("[1/5]")} 🔍 Анализ окружения...`);
