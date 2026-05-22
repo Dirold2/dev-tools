@@ -99,7 +99,7 @@ try {
     throw new Error("Директория 'dist' не найдена после компиляции.");
   }
   console.log(
-    gray("      ■■■■■■■■■─■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 80% [package.json]"),
+    gray("      ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 80% [package.json]"),
   );
 
   console.log(`${cyan("[5/5]")} 🚀 Публикация в ветку ${bold("__dist__")}...`);
@@ -164,11 +164,11 @@ try {
     `│ ${bold("● Project Details")}                                      │`,
   );
   console.log(`│                                                        │`);
-  console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))} │`);
-  console.log(`│  ${bold("Version:")}  ${green(version.padEnd(41))} │`);
-  console.log(`│  ${bold("Source:")}   ${currentBranch.padEnd(41)} │`);
-  console.log(`│  ${bold("Target:")}   ${"__dist__ (GitHub)".padEnd(41)} │`);
-  console.log(`│  ${bold("Duration:")} ${`${duration}s`.padEnd(41)} │`);
+  console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))}   │`);
+  console.log(`│  ${bold("Version:")}  ${green(version.padEnd(41))}   │`);
+  console.log(`│  ${bold("Source:")}   ${currentBranch.padEnd(41)}   │`);
+  console.log(`│  ${bold("Target:")}   ${"__dist__ (GitHub)".padEnd(41)}   │`);
+  console.log(`│  ${bold("Duration:")} ${`${duration}s`.padEnd(41)}   │`);
   console.log(
     gray("└────────────────────────────────────────────────────────┘\n"),
   );

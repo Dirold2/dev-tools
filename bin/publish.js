@@ -56,11 +56,11 @@ try {
     `│ ${bold("● Registry Details")}                                    │`,
   );
   console.log(`│                                                        │`);
-  console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))} │`);
-  console.log(`│  ${bold("Version:")}  ${green(version.padEnd(41))} │`);
-  console.log(`│  ${bold("Access:")}   ${"public".padEnd(41)} │`);
-  console.log(`│  ${bold("Registry:")} ${"npmjs.com".padEnd(41)} │`);
-  console.log(`│  ${bold("Duration:")} ${`${duration}s`.padEnd(41)} │`);
+  console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))}   │`);
+  console.log(`│  ${bold("Version:")}  ${green(version.padEnd(41))}   │`);
+  console.log(`│  ${bold("Access:")}   ${"public".padEnd(41)}   │`);
+  console.log(`│  ${bold("Registry:")} ${"npmjs.com".padEnd(41)}   │`);
+  console.log(`│  ${bold("Duration:")} ${`${duration}s`.padEnd(41)}   │`);
   console.log(
     gray("└────────────────────────────────────────────────────────┘\n"),
   );
