@@ -3,16 +3,25 @@ import fs from "node:fs";
 import path from "node:path";
 
 const projectRoot = process.cwd();
-const rootPkg = JSON.parse(
-  fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8"),
-);
+const pkgPath = path.join(projectRoot, "package.json");
 
-delete rootPkg.scripts;
-delete rootPkg.devDependencies;
-delete rootPkg.jest;
-delete rootPkg.eslintConfig;
+if (!fs.existsSync(pkgPath)) {
+  console.error(`❌ package.json not found in ${projectRoot}`);
+  process.exit(1);
+}
 
-delete rootPkg.files;
+const rootPkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+
+const fieldsToOmit = [
+  "scripts",
+  "devDependencies",
+  "jest",
+  "eslintConfig",
+  "files",
+];
+for (const field of fieldsToOmit) {
+  delete rootPkg[field];
+}
 
 const fixPath = (p) => {
   if (typeof p !== "string") return p;
@@ -24,19 +33,20 @@ if (rootPkg.types) rootPkg.types = fixPath(rootPkg.types);
 if (rootPkg.module) rootPkg.module = fixPath(rootPkg.module);
 
 if (rootPkg.exports) {
-  for (const key in rootPkg.exports) {
-    const exp = rootPkg.exports[key];
-    if (typeof exp === "object") {
-      for (const subKey in exp) {
-        exp[subKey] = fixPath(exp[subKey]);
+  const handleExports = (obj) => {
+    if (typeof obj === "string") return fixPath(obj);
+    if (typeof obj === "object" && obj !== null) {
+      for (const key in obj) {
+        obj[key] = handleExports(obj[key]);
       }
-    } else if (typeof exp === "string") {
-      rootPkg.exports[key] = fixPath(exp);
     }
-  }
+    return obj;
+  };
+
+  rootPkg.exports = handleExports(rootPkg.exports);
 }
 
-const distDir = path.resolve("./dist");
+const distDir = path.join(projectRoot, "dist");
 if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }

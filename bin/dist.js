@@ -1,22 +1,47 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
 import fs from "node:fs";
-
 import path from "node:path";
 
 const projectRoot = process.cwd();
 
 try {
-  console.log("🚀 Deploying build to __dist__...");
+  console.log("🚀 Checking deployment status...");
 
-  const pkg = JSON.parse(
-    fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8"),
-  );
+  const pkgPath = path.join(projectRoot, "package.json");
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   const version = pkg.version;
-  console.log(`📦 Building version ${version}...`);
 
-  execSync("npm run build", { stdio: "inherit", cwd: projectRoot });
-  const distPath = path.join(projectRoot, "dist");
+  let existingVersion = null;
+  try {
+    execSync("git fetch origin __dist__", {
+      cwd: projectRoot,
+      stdio: "ignore",
+    });
+
+    const remotePkgContent = execSync("git show origin/__dist__:package.json", {
+      cwd: projectRoot,
+    })
+      .toString()
+      .trim();
+    existingVersion = JSON.parse(remotePkgContent).version;
+    console.log(`🔍 Existing version in remote __dist__: ${existingVersion}`);
+  } catch (e) {
+    console.log(
+      "ℹ️ Remote branch __dist__ or package.json not found. Assuming first deploy.",
+    );
+  }
+
+  if (existingVersion === version) {
+    console.log(
+      `ℹ️ Version ${version} is already deployed to origin/__dist__. Skipping.`,
+    );
+    process.exit(0);
+  }
+
+  console.log(
+    `📦 Version bump detected (${existingVersion || "none"} -> ${version}). Building...`,
+  );
 
   const currentBranch = execSync("git branch --show-current", {
     cwd: projectRoot,
@@ -24,30 +49,14 @@ try {
     .toString()
     .trim();
 
+  execSync("npm run build", { stdio: "inherit", cwd: projectRoot });
+  const distPath = path.join(projectRoot, "dist");
+
+  if (!fs.existsSync(distPath)) {
+    throw new Error("Folder 'dist' not found after build.");
+  }
+
   execSync("git checkout -B __dist__", { cwd: projectRoot });
-
-  let existingVersion = null;
-  const distPkgPath = path.join(projectRoot, "package.json");
-
-  if (fs.existsSync(distPkgPath)) {
-    try {
-      const content = fs.readFileSync(distPkgPath, "utf-8");
-      existingVersion = JSON.parse(content).version;
-      console.log(`🔍 Existing version in __dist__: ${existingVersion}`);
-    } catch (e) {
-      console.log("⚠️ Could not parse existing package.json in __dist__");
-    }
-  }
-
-  console.log(
-    `⚖️ Comparing: ${existingVersion} (existing) vs ${version} (new)`,
-  );
-
-  if (existingVersion === version) {
-    console.log(`ℹ️ Versions match. Skipping.`);
-    execSync(`git checkout ${currentBranch}`, { cwd: projectRoot });
-    process.exit(0);
-  }
 
   console.log("🧹 Cleaning root directory...");
   const files = fs.readdirSync(projectRoot);
@@ -69,7 +78,13 @@ try {
 } catch (e) {
   console.error("❌ Deploy failed:", e.message);
   try {
-    execSync("git checkout main", { cwd: projectRoot });
+    const currentBranch = execSync("git branch --show-current", {
+      cwd: projectRoot,
+    })
+      .toString()
+      .trim();
+    if (currentBranch !== "main")
+      execSync("git checkout main", { cwd: projectRoot });
   } catch {}
   process.exit(1);
 }
