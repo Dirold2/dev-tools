@@ -1,0 +1,10 @@
+{
+  "name": "@dirold2/dev-tools",
+  "version": "1.0.1",
+  "type": "module",
+  "bin": {
+    "d-build": "./bin/build.js",
+    "d-dist": "./bin/dist.js",
+    "d-publish": "./bin/publish.js"
+  }
+}
