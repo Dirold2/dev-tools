@@ -4,9 +4,18 @@ import fs from "node:fs";
 import path from "node:path";
 
 const projectRoot = process.cwd();
+let currentBranch = "main";
 
 try {
   console.log("🚀 Checking deployment status...");
+
+  try {
+    currentBranch = execSync("git branch --show-current", { cwd: projectRoot })
+      .toString()
+      .trim();
+  } catch (e) {
+    //
+  }
 
   const pkgPath = path.join(projectRoot, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
@@ -43,12 +52,6 @@ try {
     `📦 Version bump detected (${existingVersion || "none"} -> ${version}). Building...`,
   );
 
-  const currentBranch = execSync("git branch --show-current", {
-    cwd: projectRoot,
-  })
-    .toString()
-    .trim();
-
   execSync("npm run build", { stdio: "inherit", cwd: projectRoot });
   const distPath = path.join(projectRoot, "dist");
 
@@ -70,6 +73,15 @@ try {
 
   fs.rmSync(distPath, { recursive: true, force: true });
 
+  try {
+    execSync("git rm -r --cached node_modules", {
+      cwd: projectRoot,
+      stdio: "ignore",
+    });
+  } catch (e) {
+    //
+  }
+
   execSync("git add -f .", { cwd: projectRoot });
   execSync(`git commit -m "chore: release v${version}"`, { cwd: projectRoot });
   execSync("git push origin __dist__ --force", { cwd: projectRoot });
@@ -80,13 +92,7 @@ try {
 } catch (e) {
   console.error("❌ Deploy failed:", e.message);
   try {
-    const currentBranch = execSync("git branch --show-current", {
-      cwd: projectRoot,
-    })
-      .toString()
-      .trim();
-    if (currentBranch !== "main")
-      execSync("git checkout main", { cwd: projectRoot });
+    execSync(`git checkout ${currentBranch}`, { cwd: projectRoot });
   } catch {}
   process.exit(1);
 }
