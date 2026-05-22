@@ -69,6 +69,12 @@ try {
     }
   }
 
+  fs.writeFileSync(
+    path.join(projectRoot, ".gitignore"),
+    "node_modules/\n",
+    "utf-8",
+  );
+
   execSync(`cp -r ${distPath}/. ${projectRoot}`);
 
   fs.rmSync(distPath, { recursive: true, force: true });
@@ -82,11 +88,21 @@ try {
     //
   }
 
-  execSync("git add -f .", { cwd: projectRoot });
-  execSync(`git commit -m "chore: release v${version}"`, { cwd: projectRoot });
-  execSync("git push origin __dist__ --force", { cwd: projectRoot });
+  execSync("git add .", { cwd: projectRoot });
 
-  console.log(`✅ Branch __dist__ updated to v${version}!`);
+  const hasChanges = execSync("git status --porcelain", { cwd: projectRoot })
+    .toString()
+    .trim();
+
+  if (hasChanges) {
+    execSync(`git commit -m "chore: release v${version}"`, {
+      cwd: projectRoot,
+    });
+    execSync("git push origin __dist__ --force", { cwd: projectRoot });
+    console.log(`✅ Branch __dist__ updated to v${version}!`);
+  } else {
+    console.log("ℹ️ No changes detected for __dist__ branch.");
+  }
 
   execSync(`git checkout ${currentBranch}`, { cwd: projectRoot });
 } catch (e) {
