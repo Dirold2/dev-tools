@@ -105,6 +105,12 @@ try {
   }
 
   execSync(`git checkout ${currentBranch}`, { cwd: projectRoot });
+
+  console.log(`⬆️ Pushing ${currentBranch} and tags to origin...`);
+  execSync(`git push origin ${currentBranch} --follow-tags`, {
+    cwd: projectRoot,
+  });
+  console.log(`🎉 Everything is up to date on origin/${currentBranch}!`);
 } catch (e) {
   console.error("❌ Deploy failed:", e.message);
   try {
