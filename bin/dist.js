@@ -7,8 +7,6 @@ const projectRoot = process.cwd();
 let currentBranch = "main";
 
 try {
-  console.log("🚀 Checking deployment status...");
-
   try {
     currentBranch = execSync("git branch --show-current", { cwd: projectRoot })
       .toString()
@@ -21,6 +19,24 @@ try {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   const version = pkg.version;
 
+  const hasMainChanges = execSync("git status --porcelain", {
+    cwd: projectRoot,
+  })
+    .toString()
+    .trim();
+
+  if (hasMainChanges) {
+    console.log(`📝 Committing changes on ${currentBranch}...`);
+    execSync("git add .", { cwd: projectRoot });
+    execSync(`git commit -m "v${version}"`, { cwd: projectRoot });
+  }
+
+  console.log(`⬆️ Pushing ${currentBranch} and tags to origin...`);
+  execSync(`git push origin ${currentBranch} --follow-tags`, {
+    cwd: projectRoot,
+  });
+
+  console.log("🚀 Checking deployment status for __dist__...");
   let existingVersion = null;
   try {
     execSync("git fetch origin __dist__", {
@@ -49,7 +65,7 @@ try {
   }
 
   console.log(
-    `📦 Version bump detected (${existingVersion || "none"} -> ${version}). Building...`,
+    `📦 Version bump detected (${existingVersion || "none"} -> ${version}). Building dist...`,
   );
 
   execSync("npm run build", { stdio: "inherit", cwd: projectRoot });
@@ -90,11 +106,13 @@ try {
 
   execSync("git add .", { cwd: projectRoot });
 
-  const hasChanges = execSync("git status --porcelain", { cwd: projectRoot })
+  const hasDistChanges = execSync("git status --porcelain", {
+    cwd: projectRoot,
+  })
     .toString()
     .trim();
 
-  if (hasChanges) {
+  if (hasDistChanges) {
     execSync(`git commit -m "chore: release v${version}"`, {
       cwd: projectRoot,
     });
@@ -105,12 +123,7 @@ try {
   }
 
   execSync(`git checkout ${currentBranch}`, { cwd: projectRoot });
-
-  console.log(`⬆️ Pushing ${currentBranch} and tags to origin...`);
-  execSync(`git push origin ${currentBranch} --follow-tags`, {
-    cwd: projectRoot,
-  });
-  console.log(`🎉 Everything is up to date on origin/${currentBranch}!`);
+  console.log(`🎉 Deployment finished successfully! Back on ${currentBranch}.`);
 } catch (e) {
   console.error("❌ Deploy failed:", e.message);
   try {

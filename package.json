@@ -1,6 +1,6 @@
 {
   "name": "@dirold2/dev-tools",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "bin": {
     "d-build": "./bin/build.js",
