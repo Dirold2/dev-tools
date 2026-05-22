@@ -53,7 +53,7 @@ try {
     gray("┌────────────────────────────────────────────────────────┐"),
   );
   console.log(
-    `│ ${bold("● Registry Details")}                                    │`,
+    `│ ${bold("● Registry Details")}                                     │`,
   );
   console.log(`│                                                        │`);
   console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))}   │`);
