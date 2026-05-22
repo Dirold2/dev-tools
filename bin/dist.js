@@ -28,16 +28,23 @@ try {
 
   let existingVersion = null;
   const distPkgPath = path.join(projectRoot, "package.json");
+
   if (fs.existsSync(distPkgPath)) {
     try {
-      existingVersion = JSON.parse(
-        fs.readFileSync(distPkgPath, "utf-8"),
-      ).version;
-    } catch (e) {}
+      const content = fs.readFileSync(distPkgPath, "utf-8");
+      existingVersion = JSON.parse(content).version;
+      console.log(`🔍 Existing version in __dist__: ${existingVersion}`);
+    } catch (e) {
+      console.log("⚠️ Could not parse existing package.json in __dist__");
+    }
   }
 
+  console.log(
+    `⚖️ Comparing: ${existingVersion} (existing) vs ${version} (new)`,
+  );
+
   if (existingVersion === version) {
-    console.log(`ℹ️ Version ${version} is already deployed. Skipping.`);
+    console.log(`ℹ️ Versions match. Skipping.`);
     execSync(`git checkout ${currentBranch}`, { cwd: projectRoot });
     process.exit(0);
   }
