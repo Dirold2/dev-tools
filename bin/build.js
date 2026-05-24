@@ -20,14 +20,14 @@ const startTime = Date.now();
 const projectRoot = process.cwd();
 const pkgPath = path.join(projectRoot, "package.json");
 
-console.log(`\n● ${bold(TOOL_NAME)} ${gray(`publish v${TOOL_VERSION}`)}\n`);
+console.log(`\n● ${bold(TOOL_NAME)} ${gray(`prep-dist v${TOOL_VERSION}`)}\n`);
 
 try {
   if (!fs.existsSync(pkgPath)) {
     throw new Error(`package.json не найден в директории: ${projectRoot}`);
   }
 
-  console.log(`${cyan("[1/3]")} 🧹 Удаление девелоперских полей...`);
+  console.log(`${cyan("[1/3]")} 🧹 Очистка манифеста...`);
   const rootPkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
   const fieldsToOmit = [
@@ -36,28 +36,29 @@ try {
     "jest",
     "eslintConfig",
     "files",
+    "publishConfig",
+    "private",
   ];
 
-  let omittedCount = 0;
   for (const field of fieldsToOmit) {
-    if (field in rootPkg) {
-      delete rootPkg[field];
-      omittedCount++;
-    }
-  }
-  if (omittedCount > 0) {
-    console.log(gray(`      Вырезано полей: ${omittedCount}`));
+    if (field in rootPkg) delete rootPkg[field];
   }
 
-  console.log(`${cyan("[2/3]")} 🪛 Корректировка путей экспорта...`);
+  rootPkg.private = false;
+
+  console.log(`${cyan("[2/3]")} 🪛 Адаптация путей для dist/...`);
+
   const fixPath = (p) => {
     if (typeof p !== "string") return p;
-    return p.replace(/^(\.?\/?)?(dist\/)?/, "./");
+
+    const clean = p.replace(/^dist\//, "").replace(/^\.?\/?/, "");
+    return `./${clean}`;
   };
 
-  if (rootPkg.main) rootPkg.main = fixPath(rootPkg.main);
-  if (rootPkg.types) rootPkg.types = fixPath(rootPkg.types);
-  if (rootPkg.module) rootPkg.module = fixPath(rootPkg.module);
+  const fieldsToFix = ["main", "types", "module", "typesVersions"];
+  for (const field of fieldsToFix) {
+    if (rootPkg[field]) rootPkg[field] = fixPath(rootPkg[field]);
+  }
 
   if (rootPkg.exports) {
     const handleExports = (obj) => {
@@ -69,12 +70,15 @@ try {
       }
       return obj;
     };
-
     rootPkg.exports = handleExports(rootPkg.exports);
-    console.log(gray("      Карта exports успешно пересобрана"));
+    console.log(
+      gray(
+        `    Экспорты пересобраны: ${Object.keys(rootPkg.exports).join(", ")}`,
+      ),
+    );
   }
 
-  console.log(`${cyan("[3/3]")} 💾 Запись финального манифеста...`);
+  console.log(`${cyan("[3/3]")} 💾 Сохранение dist/package.json...`);
   const distDir = path.join(projectRoot, "dist");
   if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true });
@@ -88,9 +92,9 @@ try {
 
   const duration = Date.now() - startTime;
   console.log(
-    `\n${green("✓")} ${bold("Clean package.json generated in dist/")} ${gray(`(${duration}ms)`)}\n`,
+    `\n${green("✓")} ${bold("Dist manifest ready!")} ${gray(`(${duration}ms)`)}\n`,
   );
 } catch (e) {
-  console.error(`\n${red("💥 Pack failed:")} ${e.message}\n`);
+  console.error(`\n${red("💥 Build failed:")} ${e.message}\n`);
   process.exit(1);
 }
