@@ -60,6 +60,10 @@ try {
     if (rootPkg[field]) rootPkg[field] = fixPath(rootPkg[field]);
   }
 
+  if (rootPkg.sideEffects && Array.isArray(rootPkg.sideEffects)) {
+    rootPkg.sideEffects = rootPkg.sideEffects.map(fixPath);
+  }
+
   if (rootPkg.exports) {
     const handleExports = (obj) => {
       if (typeof obj === "string") return fixPath(obj);
