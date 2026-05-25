@@ -50,8 +50,7 @@ try {
 
   const fixPath = (p) => {
     if (typeof p !== "string") return p;
-
-    const clean = p.replace(/^dist\//, "").replace(/^\.?\/?/, "");
+    const clean = p.replace(/^(?:\.\/)?dist\//, "");
     return `./${clean}`;
   };
 
