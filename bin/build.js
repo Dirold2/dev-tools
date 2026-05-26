@@ -93,6 +93,15 @@ try {
     "utf-8",
   );
 
+  const filesToCopy = ["LICENSE", "README.md"];
+  for (const file of filesToCopy) {
+    const src = path.join(projectRoot, file);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(distDir, file));
+      console.log(gray(`    Copied: ${file}`));
+    }
+  }
+
   const duration = Date.now() - startTime;
   console.log(
     `\n${green("✓")} ${bold("Dist manifest ready!")} ${gray(`(${duration}ms)`)}\n`,
