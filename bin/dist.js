@@ -4,43 +4,48 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadConfig } from "../src/config.js";
+import {
+  logHeader,
+  logStep,
+  logDetail,
+  logSuccess,
+  logError,
+  logWarn,
+  summaryBox,
+  fmtDuration,
+  bold,
+  green,
+  cyan,
+} from "../src/format.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const toolPkgPath = path.join(__dirname, "../package.json");
-const toolPkg = JSON.parse(fs.readFileSync(toolPkgPath, "utf-8"));
-
-const TOOL_NAME = toolPkg.name;
-const TOOL_VERSION = toolPkg.version;
-
-// ANSI-цвета для терминала
-const bold = (txt) => `\x1b[1m${txt}\x1b[0m`;
-const green = (txt) => `\x1b[32m${txt}\x1b[0m`;
-const cyan = (txt) => `\x1b[36m${txt}\x1b[0m`;
-const gray = (txt) => `\x1b[90m${txt}\x1b[0m`;
-const yellow = (txt) => `\x1b[33m${txt}\x1b[0m`;
-const red = (txt) => `\x1b[31m${txt}\x1b[0m`;
+const toolPkg = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../package.json"), "utf-8"),
+);
 
 const projectRoot = process.cwd();
+const config = loadConfig(projectRoot);
 let currentBranch = "main";
 const startTime = Date.now();
+const distBranch = config.dist?.distBranch ?? "__dist__";
 
-console.log(`\n● ${bold(TOOL_NAME)} ${gray(`dist v${TOOL_VERSION}`)}\n`);
+logHeader(toolPkg.name, "dist", toolPkg.version);
 
 try {
-  console.log(`${cyan("[1/5]")} 🔍 Анализ окружения...`);
+  logStep("Анализ окружения...");
   try {
     currentBranch = execSync("git branch --show-current", { cwd: projectRoot })
       .toString()
       .trim();
-  } catch (e) {}
+  } catch {}
 
   const pkgPath = path.join(projectRoot, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   const version = pkg.version;
   const pkgName = pkg.name || "unknown-package";
 
-  console.log(
-    `${cyan("[2/5]")} 📝 Синхронизация ветки ${bold(currentBranch)}...`,
-  );
+  logStep(`Синхронизация ветки ${bold(currentBranch)}...`);
   const hasMainChanges = execSync("git status --porcelain", {
     cwd: projectRoot,
   })
@@ -53,60 +58,56 @@ try {
       cwd: projectRoot,
       stdio: "ignore",
     });
-    console.log(`      ${green("✓")} Создан коммит с версией ${bold(version)}`);
+    logDetail(`✓ Создан коммит с версией ${bold(version)}`);
   }
 
   execSync(`git push origin ${currentBranch} --follow-tags`, {
     cwd: projectRoot,
     stdio: "ignore",
   });
-  console.log(
-    `      ${green("✓")} Ветка ${bold(currentBranch)} отправлена в origin`,
-  );
+  logDetail(`✓ Ветка ${bold(currentBranch)} отправлена в origin`);
 
-  console.log(
-    `${cyan("[3/5]")} ⚙️ Проверка статуса деплоя в ${bold("__dist__")}...`,
-  );
+  logStep(`Проверка статуса деплоя в ${bold(distBranch)}...`);
   let existingVersion = null;
   try {
-    execSync("git fetch origin __dist__", {
+    execSync(`git fetch origin ${distBranch}`, {
       cwd: projectRoot,
       stdio: "ignore",
     });
-    const remotePkgContent = execSync("git show origin/__dist__:package.json", {
+    const content = execSync(`git show origin/${distBranch}:package.json`, {
       cwd: projectRoot,
       stdio: "pipe",
     })
       .toString()
       .trim();
-    existingVersion = JSON.parse(remotePkgContent).version;
-  } catch (e) {}
+    existingVersion = JSON.parse(content).version;
+  } catch {}
 
   if (existingVersion === version) {
-    console.log(
-      `\n${yellow("ℹ Информация:")} Версия ${bold(version)} уже развернута в origin/__dist__. Пропуск.`,
+    logWarn(
+      `Версия ${bold(version)} уже развернута в origin/${distBranch}. Пропуск.`,
     );
     process.exit(0);
   }
 
-  console.log(`${cyan("[4/5]")} 📦 Сборка дистрибутива...`);
-  console.log(gray("      ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 40% [tsc]"));
+  logStep("Сборка дистрибутива...");
+  logDetail("tsc...");
+  const buildCmd = config.dist?.buildCommand ?? "npm run build";
+  execSync(buildCmd, { stdio: "ignore", cwd: projectRoot });
 
-  execSync("npm run build", { stdio: "ignore", cwd: projectRoot });
   const distPath = path.join(projectRoot, "dist");
-
   if (!fs.existsSync(distPath)) {
     throw new Error("Директория 'dist' не найдена после компиляции.");
   }
-  console.log(
-    gray("      ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 80% [package.json]"),
-  );
+  logDetail("package.json...");
 
-  console.log(`${cyan("[5/5]")} 🚀 Публикация в ветку ${bold("__dist__")}...`);
-  execSync("git checkout -B __dist__", { cwd: projectRoot, stdio: "ignore" });
+  logStep(`Публикация в ветку ${bold(distBranch)}...`);
+  execSync(`git checkout -B ${distBranch}`, {
+    cwd: projectRoot,
+    stdio: "ignore",
+  });
 
-  const files = fs.readdirSync(projectRoot);
-  for (const file of files) {
+  for (const file of fs.readdirSync(projectRoot)) {
     if (![".git", "node_modules", ".gitignore", "dist"].includes(file)) {
       fs.rmSync(path.join(projectRoot, file), { recursive: true, force: true });
     }
@@ -125,7 +126,7 @@ try {
       cwd: projectRoot,
       stdio: "ignore",
     });
-  } catch (e) {}
+  } catch {}
 
   execSync("git add .", { cwd: projectRoot });
 
@@ -139,41 +140,29 @@ try {
       cwd: projectRoot,
       stdio: "ignore",
     });
-    execSync("git push origin __dist__ --force", {
+    execSync(`git push origin ${distBranch} --force`, {
       cwd: projectRoot,
       stdio: "ignore",
     });
   }
 
-  console.log(
-    gray("      ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 100% [done]"),
-  );
-
+  logDetail("done");
   execSync(`git checkout ${currentBranch}`, {
     cwd: projectRoot,
     stdio: "ignore",
   });
 
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-  console.log(`\n${green("✓ Deployment Successful!")}`);
-  console.log(
-    gray("┌────────────────────────────────────────────────────────┐"),
-  );
-  console.log(
-    `│ ${bold("● Project Details")}                                      │`,
-  );
-  console.log(`│                                                        │`);
-  console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))}   │`);
-  console.log(`│  ${bold("Version:")}  ${green(version.padEnd(41))}   │`);
-  console.log(`│  ${bold("Source:")}   ${currentBranch.padEnd(41)}   │`);
-  console.log(`│  ${bold("Target:")}   ${"__dist__ (GitHub)".padEnd(41)}   │`);
-  console.log(`│  ${bold("Duration:")} ${`${duration}s`.padEnd(41)}   │`);
-  console.log(
-    gray("└────────────────────────────────────────────────────────┘\n"),
-  );
+  const dur = fmtDuration(Date.now() - startTime);
+  logSuccess("Deployment Successful!");
+  summaryBox("Project Details", [
+    { label: "Package:", value: pkgName, color: cyan },
+    { label: "Version:", value: version, color: green },
+    { label: "Source:", value: currentBranch },
+    { label: "Target:", value: `${distBranch} (GitHub)` },
+    { label: "Duration:", value: dur },
+  ]);
 } catch (e) {
-  console.error(`\n${red("💥 Deploy failed:")} ${e.message}`);
+  logError(`Deploy failed: ${e.message}`);
   try {
     execSync(`git checkout ${currentBranch}`, {
       cwd: projectRoot,

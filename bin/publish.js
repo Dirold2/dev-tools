@@ -4,24 +4,30 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { loadConfig } from "../src/config.js";
+import {
+  logHeader,
+  logStep,
+  logDetail,
+  logSuccess,
+  logError,
+  summaryBox,
+  fmtDuration,
+  green,
+  cyan,
+} from "../src/format.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const toolPkgPath = path.join(__dirname, "../package.json");
-const toolPkg = JSON.parse(fs.readFileSync(toolPkgPath, "utf-8"));
-
-const TOOL_NAME = toolPkg.name;
-const TOOL_VERSION = toolPkg.version;
-
-const bold = (txt) => `\x1b[1m${txt}\x1b[0m`;
-const green = (txt) => `\x1b[32m${txt}\x1b[0m`;
-const cyan = (txt) => `\x1b[36m${txt}\x1b[0m`;
-const gray = (txt) => `\x1b[90m${txt}\x1b[0m`;
-const red = (txt) => `\x1b[31m${txt}\x1b[0m`;
+const toolPkg = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../package.json"), "utf-8"),
+);
 
 const startTime = Date.now();
 const projectRoot = process.cwd();
+const config = loadConfig(projectRoot);
 const distPath = path.join(projectRoot, "dist");
 
-console.log(`\n● ${bold(TOOL_NAME)} ${gray(`pack v${TOOL_VERSION}`)}\n`);
+logHeader(toolPkg.name, "pack", toolPkg.version);
 
 try {
   const pkgPath = path.join(projectRoot, "package.json");
@@ -32,7 +38,7 @@ try {
   const version = pkg.version;
   const pkgName = pkg.name || "unknown-package";
 
-  console.log(`${cyan("[1/2]")} 📦 Сборка дистрибутива...`);
+  logStep("Сборка дистрибутива...");
   execSync("npm run build", { stdio: "ignore", cwd: projectRoot });
 
   if (!fs.existsSync(distPath)) {
@@ -41,30 +47,30 @@ try {
     );
   }
 
-  console.log(`${cyan("[2/2]")} 🚀 Публикация в реестр NPM...`);
-  console.log(gray("────────────────────────────────────────────────────────"));
-  execSync("npm publish --access public", { cwd: distPath, stdio: "inherit" });
-  console.log(gray("────────────────────────────────────────────────────────"));
+  logStep("Публикация в реестр NPM...");
+  logDetail("Проверка аутентификации...");
+  try {
+    execSync("npm whoami", { stdio: "ignore" });
+  } catch {
+    logDetail("Требуется аутентификация. Запуск npm login...");
+    execSync("npm login", { stdio: "inherit" });
+  }
+  const access = config.publish?.access ?? "public";
+  execSync(`npm publish --access ${access}`, {
+    cwd: distPath,
+    stdio: "inherit",
+  });
 
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-  console.log(`\n${green("✓ Пакет успешно опубликован!")}`);
-  console.log(
-    gray("┌────────────────────────────────────────────────────────┐"),
-  );
-  console.log(
-    `│ ${bold("● Registry Details")}                                     │`,
-  );
-  console.log(`│                                                        │`);
-  console.log(`│  ${bold("Package:")}  ${cyan(pkgName.padEnd(41))}   │`);
-  console.log(`│  ${bold("Version:")}  ${green(version.padEnd(41))}   │`);
-  console.log(`│  ${bold("Access:")}   ${"public".padEnd(41)}   │`);
-  console.log(`│  ${bold("Registry:")} ${"npmjs.com".padEnd(41)}   │`);
-  console.log(`│  ${bold("Duration:")} ${`${duration}s`.padEnd(41)}   │`);
-  console.log(
-    gray("└────────────────────────────────────────────────────────┘\n"),
-  );
+  const dur = fmtDuration(Date.now() - startTime);
+  logSuccess("Пакет успешно опубликован!");
+  summaryBox("Registry Details", [
+    { label: "Package:", value: pkgName, color: cyan },
+    { label: "Version:", value: version, color: green },
+    { label: "Access:", value: "public" },
+    { label: "Registry:", value: "npmjs.com" },
+    { label: "Duration:", value: dur },
+  ]);
 } catch (e) {
-  console.error(`\n${red("💥 Publish failed:")} ${e.message}\n`);
+  logError(`Publish failed: ${e.message}`);
   process.exit(1);
 }

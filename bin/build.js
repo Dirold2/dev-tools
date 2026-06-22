@@ -3,34 +3,36 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadConfig } from "../src/config.js";
+import {
+  logHeader,
+  logStep,
+  logDetail,
+  logSuccess,
+  logError,
+} from "../src/format.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const toolPkgPath = path.join(__dirname, "../package.json");
-const toolPkg = JSON.parse(fs.readFileSync(toolPkgPath, "utf-8"));
-
-const TOOL_NAME = toolPkg.name;
-const TOOL_VERSION = toolPkg.version;
-
-const bold = (txt) => `\x1b[1m${txt}\x1b[0m`;
-const green = (txt) => `\x1b[32m${txt}\x1b[0m`;
-const cyan = (txt) => `\x1b[36m${txt}\x1b[0m`;
-const gray = (txt) => `\x1b[90m${txt}\x1b[0m`;
-const red = (txt) => `\x1b[31m${txt}\x1b[0m`;
+const toolPkg = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../package.json"), "utf-8"),
+);
 
 const startTime = Date.now();
 const projectRoot = process.cwd();
+const config = loadConfig(projectRoot);
 const pkgPath = path.join(projectRoot, "package.json");
 
-console.log(`\n● ${bold(TOOL_NAME)} ${gray(`prep-dist v${TOOL_VERSION}`)}\n`);
+logHeader(toolPkg.name, "prep-dist", toolPkg.version);
 
 try {
   if (!fs.existsSync(pkgPath)) {
     throw new Error(`package.json не найден в директории: ${projectRoot}`);
   }
 
-  console.log(`${cyan("[1/3]")} 🧹 Очистка манифеста...`);
+  logStep("Очистка манифеста...");
   const rootPkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
-  const fieldsToOmit = [
+  const fieldsToOmit = config.build?.omitFields ?? [
     "scripts",
     "devDependencies",
     "jest",
@@ -46,16 +48,20 @@ try {
 
   rootPkg.private = false;
 
-  console.log(`${cyan("[2/3]")} 🪛 Адаптация путей для dist/...`);
+  logStep("Адаптация путей для dist/...");
 
   const fixPath = (p) => {
     if (typeof p !== "string") return p;
-    const clean = p.replace(/^(?:\.\/)?dist\//, "");
-    return `./${clean}`;
+    return `./${p.replace(/^(?:\.\/)?dist\//, "")}`;
   };
 
-  const fieldsToFix = ["main", "types", "module", "typesVersions"];
-  for (const field of fieldsToFix) {
+  const fixFields = config.build?.fixFields ?? [
+    "main",
+    "types",
+    "module",
+    "typesVersions",
+  ];
+  for (const field of fixFields) {
     if (rootPkg[field]) rootPkg[field] = fixPath(rootPkg[field]);
   }
 
@@ -64,49 +70,41 @@ try {
   }
 
   if (rootPkg.exports) {
-    const handleExports = (obj) => {
+    const fix = (obj) => {
       if (typeof obj === "string") return fixPath(obj);
       if (typeof obj === "object" && obj !== null) {
-        for (const key in obj) {
-          obj[key] = handleExports(obj[key]);
-        }
+        for (const k in obj) obj[k] = fix(obj[k]);
       }
       return obj;
     };
-    rootPkg.exports = handleExports(rootPkg.exports);
-    console.log(
-      gray(
-        `    Экспорты пересобраны: ${Object.keys(rootPkg.exports).join(", ")}`,
-      ),
+    rootPkg.exports = fix(rootPkg.exports);
+    logDetail(
+      `Экспорты пересобраны: ${Object.keys(rootPkg.exports).join(", ")}`,
     );
   }
 
-  console.log(`${cyan("[3/3]")} 💾 Сохранение dist/package.json...`);
+  logStep("Сохранение dist/package.json...");
   const distDir = path.join(projectRoot, "dist");
   if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true });
   }
-
   fs.writeFileSync(
     path.join(distDir, "package.json"),
     JSON.stringify(rootPkg, null, 2),
     "utf-8",
   );
 
-  const filesToCopy = ["LICENSE", "README.md"];
-  for (const file of filesToCopy) {
+  const copyFiles = config.build?.copyFiles ?? ["LICENSE", "README.md"];
+  for (const file of copyFiles) {
     const src = path.join(projectRoot, file);
     if (fs.existsSync(src)) {
       fs.copyFileSync(src, path.join(distDir, file));
-      console.log(gray(`    Copied: ${file}`));
+      logDetail(`Copied: ${file}`);
     }
   }
 
-  const duration = Date.now() - startTime;
-  console.log(
-    `\n${green("✓")} ${bold("Dist manifest ready!")} ${gray(`(${duration}ms)`)}\n`,
-  );
+  logSuccess("Dist manifest ready!", Date.now() - startTime);
 } catch (e) {
-  console.error(`\n${red("💥 Build failed:")} ${e.message}\n`);
+  logError(`Build failed: ${e.message}`);
   process.exit(1);
 }
